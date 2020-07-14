@@ -148,7 +148,7 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	for p, c := range m {
 		mL[p] = Link{
 			Path:    p,
-			Percent: float32(c.n) / float32(sampleSize),
+			Percent: float32(c.n) / float32(len(lss)),
 			With:    c.with,
 		}
 	}
