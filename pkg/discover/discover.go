@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
@@ -19,7 +18,7 @@ type Repo interface {
 	ExistsByID(ctx context.Context, db, collection string, id primitive.ObjectID) (bool, error)
 	ListDatabases(ctx context.Context) ([]string, error)
 	ListCollections(ctx context.Context, db string) ([]string, error)
-	SampleCollection(ctx context.Context, db, collection string, size int) (*mongo.Cursor, error)
+	SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error)
 }
 
 // Discover will walk trought Database using its repo and collect some data about the schema
@@ -86,8 +85,8 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 	return ls, nil
 }
 
-// MatchLink tries to match Links against all collection to find
-func (d Discover) MatchLink(ctx context.Context, client *mongo.Client, ls []Link) ([]Link, error) {
+// matchLink tries to match Links against all collection to find
+func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 	matchLs := []Link{}
 
 	dbs, err := d.repo.ListDatabases(ctx)
@@ -128,8 +127,8 @@ func (d Discover) MatchLink(ctx context.Context, client *mongo.Client, ls []Link
 	return matchLs, nil
 }
 
-// ReduceLinks will compute all probabilities that a specific link exists
-func ReduceLinks(lss [][]Link) (CollectionLinks, error) {
+// reduceLinks will compute all probabilities that a specific link exists
+func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	m := make(map[string]struct {
 		n    int
 		with string
@@ -158,35 +157,27 @@ func ReduceLinks(lss [][]Link) (CollectionLinks, error) {
 }
 
 // Collection allow to retrieve all path that can be an ObjectId
-func (d Discover) Collection(ctx context.Context, client *mongo.Client, db string, collection string) (CollectionLinks, error) {
+func (d Discover) Collection(ctx context.Context, db string, collection string) (CollectionLinks, error) {
 
-	c, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
+	samples, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
 	if err != nil {
 		log.Fatalf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
 	}
 
-	m := primitive.M{}
+	lss := make([][]Link, 0, len(samples))
 
-	lss := [][]Link{}
-
-	for c.Next(ctx) {
-		if err := c.Decode(m); err != nil {
-			log.Fatalf("Error during decoding sample of collection: %s db: %s with err: %s", collection, db, err)
-		}
-
+	for _, m := range samples {
 		ls, err := Linkify(m, "")
 		if err != nil {
 			log.Fatalf("Error during Linkify %s", err)
 		}
 
-		ls, err = d.MatchLink(ctx, client, ls)
+		ls, err = d.matchLink(ctx, ls)
 		lss = append(lss, ls)
 		if err != nil {
 			log.Fatalf("Error during MatchLink for %s.%s with: %s", db, collection, err)
 		}
 	}
 
-	mL, _ := ReduceLinks(lss)
-
-	return mL, nil
+	return reduceLinks(lss)
 }

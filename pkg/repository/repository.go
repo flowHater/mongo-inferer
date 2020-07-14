@@ -55,8 +55,16 @@ func (r Repo) ListCollections(ctx context.Context, db string) ([]string, error) 
 }
 
 // SampleCollection returns a random sample of a specific size from a specific db.collection
-func (r Repo) SampleCollection(ctx context.Context, db, collection string, size int) (*mongo.Cursor, error) {
-	return r.client.Database(db).Collection(collection).Aggregate(ctx, primitive.A{
+func (r Repo) SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error) {
+	c, err := r.client.Database(db).Collection(collection).Aggregate(ctx, primitive.A{
 		primitive.D{{Key: "$sample", Value: primitive.D{{Key: "size", Value: size}}}},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("Error during sampling: %w", err)
+	}
+
+	results := []primitive.M{}
+	err = c.All(ctx, &results)
+
+	return results, err
 }

@@ -59,7 +59,7 @@ func TestDiscover_MatchLink(t *testing.T) {
 			d := Discover{
 				repo: tt.fields.repo,
 			}
-			got, err := d.MatchLink(tt.args.ctx, tt.args.client, tt.args.ls)
+			got, err := d.matchLink(tt.args.ctx, tt.args.ls)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Discover.MatchLink() error = %v, wantErr %v", err, tt.wantErr)
 				return
