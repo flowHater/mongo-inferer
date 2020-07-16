@@ -35,7 +35,7 @@ func New(r Repo) *Discover {
 
 // Link represents a path that leads to an ObjectId as a string
 type Link struct {
-	Value   string
+	Value   string `json:"-"`
 	Path    string
 	With    string
 	Percent float32
