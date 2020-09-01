@@ -89,7 +89,6 @@ func TestMatchLink(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			oid1 := primitive.NewObjectID()
-			// oid2 := primitive.NewObjectID()
 
 			repo := mock_discover.NewMockRepo(ctrl)
 			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
@@ -105,6 +104,39 @@ func TestMatchLink(t *testing.T) {
 			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"}}
 
 			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+		}(),
+		func() test {
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+
+			oid1 := primitive.NewObjectID()
+			oid2 := primitive.NewObjectID()
+
+			repo := mock_discover.NewMockRepo(ctrl)
+			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid1).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid1).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
+
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid2).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid2).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid2).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid2).Return(false, nil)
+
+			a := args{ctx: ctx, ls: []Link{
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
+			}}
+			want := []Link{
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: "db1.cl2"},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"},
+			}
+
+			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
 		}(),
 	}
 
