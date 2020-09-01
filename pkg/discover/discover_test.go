@@ -75,43 +75,55 @@ func TestMatchLink(t *testing.T) {
 		ls  []Link
 	}
 
-	ctx := context.Background()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	type test struct {
+		fields fields
+		args   args
+		want   []Link
+		name   string
+		ctrl   *gomock.Controller
+	}
 
-	oid1 := primitive.NewObjectID()
-	// oid2 := primitive.NewObjectID()
+	tests := []test{
+		func() test {
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
 
-	repo := func() Repo {
-		m := mock_discover.NewMockRepo(ctrl)
-		m.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
-		m.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
-		m.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			oid1 := primitive.NewObjectID()
+			// oid2 := primitive.NewObjectID()
 
-		m.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid1).Return(false, nil)
-		m.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid1).Return(false, nil)
-		m.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-		m.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
+			repo := mock_discover.NewMockRepo(ctrl)
+			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-		return m
-	}()
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid1).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid1).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
 
-	a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
-	want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"}}
+			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
+			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"}}
 
-	t.Run("nominal case", func(t *testing.T) {
-		d := Discover{
-			repo: repo,
-		}
+			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+		}(),
+	}
 
-		got, err := d.matchLink(ctx, a.ls)
-		if err != nil {
-			t.Errorf("Discover.MatchLink() error = %v", err)
-			return
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer tt.ctrl.Finish()
+			d := Discover{
+				repo: tt.fields.repo,
+			}
 
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("Discover.MatchLink() = %v, want %v", got, want)
-		}
-	})
+			got, err := d.matchLink(tt.args.ctx, tt.args.ls)
+			if err != nil {
+				t.Errorf("Discover.MatchLink() error = %v", err)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Discover.MatchLink() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
