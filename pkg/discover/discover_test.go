@@ -3,6 +3,7 @@ package discover
 import (
 	"context"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -40,10 +41,9 @@ func TestLinkify(t *testing.T) {
 			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1, "aaaaaaaa2": oid2}},
 			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}},
 		}, {
-			disabled: true,
-			name:     "multiple nested case",
-			args:     args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1, "aaaaaaaa2": oid2, "nested": primitive.M{"field1": oid1, "field2": oid2}}},
-			want:     []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.field1", Value: oid1.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
+			name: "multiple nested case",
+			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1, "aaaaaaaa2": oid2, "nested": primitive.M{"field1": oid1, "field2": oid2}}},
+			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.field1", Value: oid1.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
 		},
 	}
 
@@ -59,7 +59,7 @@ func TestLinkify(t *testing.T) {
 				return
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(sortLinkInPlace(got), sortLinkInPlace(tt.want)) {
 				t.Errorf("Linkify() = %v, want %v", got, tt.want)
 			}
 		})
@@ -128,12 +128,12 @@ func TestMatchLink(t *testing.T) {
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid2).Return(false, nil)
 
 			a := args{ctx: ctx, ls: []Link{
-				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
 			}}
 			want := []Link{
-				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: "db1.cl2"},
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: "db1.cl2"},
 			}
 
 			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
@@ -153,9 +153,17 @@ func TestMatchLink(t *testing.T) {
 				return
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(sortLinkInPlace(got), sortLinkInPlace(tt.want)) {
 				t.Errorf("Discover.MatchLink() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func sortLinkInPlace(ls []Link) []Link {
+	sort.Slice(ls, func(i, j int) bool {
+		return ls[i].Value < ls[j].Value
+	})
+
+	return ls
 }
