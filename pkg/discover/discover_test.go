@@ -164,9 +164,72 @@ func TestMatchLink(t *testing.T) {
 	}
 }
 
+func Test_reduceLinks(t *testing.T) {
+	type args struct {
+		lss [][]Link
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    CollectionLinks
+		wantErr bool
+	}{
+		{
+			name: "Nominal case - with all links present at 100%",
+			args: args{
+				lss: [][]Link{
+					{
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+					},
+				},
+			}, want: CollectionLinks{
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3", Percent: 1},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2", Percent: 1},
+			},
+		}, {
+			name: "Nominal case - with links present at random%",
+			args: args{
+				lss: [][]Link{
+					{
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+					},
+					{
+						{Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: "db8.cl40"},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+					},
+					{
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
+						{Path: "ttttttttttt3.ooop.dda.ccccccc", With: "db4.cl4"},
+					},
+				},
+			}, want: CollectionLinks{
+				"eeeeeeeeee.455aaaaaaaa.ccccccc":       {Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: "db8.cl40", Percent: 0.33333334},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     {Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3", Percent: 0.6666667},
+				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: "db4.cl4", Percent: 0.33333334},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2", Percent: 0.6666667},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := reduceLinks(tt.args.lss)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("reduceLinks() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("reduceLinks() = %+v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func sortLinkInPlace(ls []Link) []Link {
 	sort.Slice(ls, func(i, j int) bool {
-		return ls[i].Value < ls[j].Value
+		return ls[i].Path < ls[j].Path
 	})
 
 	return ls
