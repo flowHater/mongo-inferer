@@ -44,6 +44,10 @@ func TestLinkify(t *testing.T) {
 			name: "multiple nested case",
 			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1, "aaaaaaaa2": oid2, "nested": primitive.M{"field1": oid1, "field2": oid2}}},
 			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.field1", Value: oid1.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
+		}, {
+			name: "string representing ObjectID",
+			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1.Hex(), "aaaaaaaa2": oid2, "nested": primitive.M{"field1": oid1, "field2": oid2}}},
+			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.field1", Value: oid1.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
 		},
 	}
 
