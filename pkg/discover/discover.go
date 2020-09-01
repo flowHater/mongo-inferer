@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	sampleSize = 100
+	sampleSize = 1000
 	primaryKey = "_id"
 )
 

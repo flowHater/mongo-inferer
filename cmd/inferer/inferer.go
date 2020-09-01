@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/flowHater/mongo-inferer/pkg/seeder"
 	"log"
 
 	"github.com/flowHater/mongo-inferer/pkg/discover"
 	"github.com/flowHater/mongo-inferer/pkg/repository"
-	"github.com/flowHater/mongo-inferer/pkg/seeder"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -22,8 +23,8 @@ func main() {
 	r := repository.New(repository.WithClient(client))
 	d := discover.New(r)
 
-	m, _ := d.Collection(ctx, seeder.Database, seeder.CollectionC)
+	m, _ := d.Collection(ctx, seeder.Database, seeder.CollectionA)
 
-	fmt.Println(m)
-
+	jm, err := json.Marshal(m)
+	fmt.Println(string(jm))
 }
