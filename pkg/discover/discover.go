@@ -91,7 +91,7 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 
 	dbs, err := d.repo.ListDatabases(ctx)
 	if err != nil {
-		log.Fatalf("Error during fetching Db names: %s", err)
+		return nil, fmt.Errorf("Error during fetching Db names: %w", err)
 	}
 
 	for _, db := range dbs {
@@ -101,18 +101,18 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 
 		cls, err := d.repo.ListCollections(ctx, db)
 		if err != nil {
-			log.Fatalf("Error during fetching collection names for db: %s with: %s", db, err)
+			return nil, fmt.Errorf("Error during fetching collection names for db: %s with: %w", db, err)
 		}
 		for _, c := range cls {
 			for _, l := range ls {
 				id, err := primitive.ObjectIDFromHex(l.Value)
 				if err != nil {
-					log.Fatalf("Error during ObjectId creation with value: %s, with: %s", l.Value, err)
+					return nil, fmt.Errorf("Error during ObjectId creation with value: %s, with: %s", l.Value, err)
 				}
 
 				exists, err := d.repo.ExistsByID(ctx, db, c, id)
 				if err != nil {
-					log.Fatalf("Error during searching %s in %s.%s with: %s", id.Hex(), db, c, err)
+					return nil, fmt.Errorf("Error during searching %s in %s.%s with: %w", id.Hex(), db, c, err)
 				}
 
 				if exists {
@@ -161,7 +161,8 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 
 	samples, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
 	if err != nil {
-		log.Fatalf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
+		log.Printf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
+		return nil, fmt.Errorf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
 	}
 
 	lss := make([][]Link, 0, len(samples))
@@ -169,13 +170,14 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 	for _, m := range samples {
 		ls, err := Linkify(m, "")
 		if err != nil {
-			log.Fatalf("Error during Linkify %s", err)
+			log.Printf("Error during Linkify %s", err)
+			return nil, fmt.Errorf("Error during Linkify %s", err)
 		}
 
 		ls, err = d.matchLink(ctx, ls)
 		lss = append(lss, ls)
 		if err != nil {
-			log.Fatalf("Error during MatchLink for %s.%s with: %s", db, collection, err)
+			return nil, fmt.Errorf("Error during MatchLink for %s.%s with: %w", db, collection, err)
 		}
 	}
 
