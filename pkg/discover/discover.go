@@ -80,6 +80,17 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 
 				ls = append(ls, l)
 			}
+		} else if a, ok := v.(primitive.A); ok {
+			for _, el := range a {
+				if e, ok := el.(primitive.M); ok {
+					subls, err := Linkify(e, fmt.Sprintf("%s%s.$", path, p))
+					if err != nil {
+						return ls, err
+					}
+
+					ls = append(ls, subls...)
+				}
+			}
 		}
 	}
 
