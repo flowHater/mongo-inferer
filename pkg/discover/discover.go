@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
-	sampleSize = 1000
+	sampleSize = 10
 	primaryKey = "_id"
 )
 
@@ -156,7 +157,7 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	return mL, nil
 }
 
-// Collection allow to retrieve all path that can be an ObjectId
+// Collection retrieves all path that can be an ObjectId
 func (d Discover) Collection(ctx context.Context, db string, collection string) (CollectionLinks, error) {
 
 	samples, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
@@ -182,4 +183,31 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 	}
 
 	return reduceLinks(lss)
+}
+
+// Database returns all links about all collections inside a Database
+func (d Discover) Database(ctx context.Context, db string) (map[string]CollectionLinks, error) {
+	cls, err := d.repo.ListCollections(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("Error during ListCollections(): %w", err)
+	}
+	mCls := map[string]CollectionLinks{}
+	wg := sync.WaitGroup{}
+
+	for _, cl := range cls {
+		c := cl
+		go func() {
+			wg.Add(1)
+			mCls[c], err = d.Collection(ctx, db, c)
+
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error during Collection(ctx, db, cl): %w", err)
+	}
+
+	return mCls, nil
 }
