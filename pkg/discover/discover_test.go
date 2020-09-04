@@ -21,6 +21,8 @@ func TestLinkify(t *testing.T) {
 
 	oid1 := primitive.NewObjectID()
 	oid2 := primitive.NewObjectID()
+	oid3 := primitive.NewObjectID()
+	oid4 := primitive.NewObjectID()
 
 	tests := []struct {
 		name     string
@@ -48,6 +50,40 @@ func TestLinkify(t *testing.T) {
 			name: "string representing ObjectID",
 			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1.Hex(), "aaaaaaaa2": oid2, "nested": primitive.M{"field1": oid1, "field2": oid2}}},
 			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.field1", Value: oid1.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
+		}, {
+			name: "array with nested oid",
+			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeee1": oid1.Hex(), "aaaaaaaa2": oid2, "nested": primitive.M{"array1": primitive.A{primitive.M{"field1": oid1, "field3": oid2}}, "field2": oid2}}},
+			want: []Link{{Path: "eeeee1", Value: oid1.Hex()}, {Path: "aaaaaaaa2", Value: oid2.Hex()}, {Path: "nested.array1.$.field1", Value: oid1.Hex()}, {Path: "nested.array1.$.field3", Value: oid2.Hex()}, {Path: "nested.field2", Value: oid2.Hex()}},
+		}, {
+			name: "multiple nested arrays with nested oid - complex/20",
+			args: args{currentPath: "", m: primitive.M{
+				"basic": oid1.Hex(),
+				"nested": primitive.M{
+					"array1": primitive.A{
+						primitive.M{"array2": primitive.A{primitive.M{"doubleNestedField": oid1, "useless": "field"}}, "field3": oid2},
+						primitive.M{"array2": primitive.A{primitive.M{"doubleNestedField": oid4, "useless": "field"}}, "field3": oid3},
+						primitive.M{
+							"array4": primitive.A{primitive.M{
+								"doubleNestedField": oid2,
+								"useless":           "field",
+								"array5":            primitive.A{primitive.M{"superNestedField": oid3}},
+							}},
+							"field3": oid4},
+					},
+					"field2": oid2,
+				},
+			},
+			},
+			want: []Link{
+				{Path: "basic", Value: oid1.Hex()},
+				{Path: "nested.array1.$.array2.$.doubleNestedField", Value: oid1.Hex()},
+				{Path: "nested.array1.$.field3", Value: oid2.Hex()},
+				{Path: "nested.array1.$.array2.$.doubleNestedField", Value: oid4.Hex()},
+				{Path: "nested.array1.$.field3", Value: oid3.Hex()},
+				{Path: "nested.array1.$.array4.$.doubleNestedField", Value: oid2.Hex()},
+				{Path: "nested.array1.$.array4.$.array5.$.superNestedField", Value: oid3.Hex()},
+				{Path: "nested.array1.$.field3", Value: oid4.Hex()},
+				{Path: "nested.field2", Value: oid2.Hex()}},
 		},
 	}
 
