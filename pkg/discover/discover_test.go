@@ -227,6 +227,100 @@ func Test_reduceLinks(t *testing.T) {
 	}
 }
 
+func TestDiscover_Collection(t *testing.T) {
+	type fields struct {
+		repo Repo
+	}
+	type args struct {
+		ctx        context.Context
+		db         string
+		collection string
+	}
+	type test struct {
+		name    string
+		fields  fields
+		args    args
+		want    CollectionLinks
+		wantErr bool
+		ctrl    *gomock.Controller
+	}
+	tests := []test{
+		func() test {
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+
+			oid1 := primitive.NewObjectID()
+			oid2 := primitive.NewObjectID()
+			oid3 := primitive.NewObjectID()
+			oid4 := primitive.NewObjectID()
+			oid5 := primitive.NewObjectID()
+			oid6 := primitive.NewObjectID()
+			oid7 := primitive.NewObjectID()
+			oid8 := primitive.NewObjectID()
+			oid9 := primitive.NewObjectID()
+			oid10 := primitive.NewObjectID()
+			oid11 := primitive.NewObjectID()
+			oid12 := primitive.NewObjectID()
+			oid13 := primitive.NewObjectID()
+			oid14 := primitive.NewObjectID()
+			oid15 := primitive.NewObjectID()
+
+			a := args{ctx: ctx, collection: "cl00020", db: "db902"}
+
+			repo := mock_discover.NewMockRepo(ctrl)
+			repo.EXPECT().SampleCollection(gomock.Eq(ctx), a.db, a.collection, sampleSize).Return([]primitive.M{
+				{"keyField": "valueField", "eeeeeId": oid4, "otherField": oid7, "otherFieldStr": oid10, "_id": oid1, "nested": primitive.M{"field": oid14}},
+				{"keyField": "valueField", "eeeeeId": oid5, "otherField": oid8, "otherFieldStr": oid11, "randomField": oid13, "_id": oid2},
+				{"keyField": "valueField", "eeeeeId": oid6, "otherField": oid9, "otherFieldStr": oid12, "_id": oid3, "nested": primitive.M{"field": oid15}},
+			}, nil)
+			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil).Times(3)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"otherFields", "randomFields", "nestedDocs"}, nil).Times(3)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"otherFieldStrs", "uselessDocs", "eeeees"}, nil).Times(3)
+
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid7).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid8).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid9).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "nestedDocs", oid14).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "nestedDocs", oid15).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "randomFields", oid13).Return(true, nil).Times(1)
+
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid10).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid11).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid12).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid4).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid5).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid6).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+
+			want := CollectionLinks{
+				"eeeeeId":       {Path: "eeeeeId", With: "db2.eeeees", Percent: 1},
+				"otherField":    {Path: "otherField", With: "db1.otherFields", Percent: 1},
+				"otherFieldStr": {Path: "otherFieldStr", With: "db2.otherFieldStrs", Percent: 1},
+				"randomField":   {Path: "randomField", With: "db1.randomFields", Percent: 0.33333334},
+				"nested.field":  {Path: "nested.field", With: "db1.nestedDocs", Percent: 0.6666667},
+			}
+
+			return test{name: "nominal case", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+		}(),
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := Discover{
+				repo: tt.fields.repo,
+			}
+			got, err := d.Collection(tt.args.ctx, tt.args.db, tt.args.collection)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Discover.Collection() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Discover.Collection() = %+v, \nwant %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 func sortLinkInPlace(ls []Link) []Link {
 	sort.Slice(ls, func(i, j int) bool {
 		return ls[i].Path < ls[j].Path
