@@ -38,7 +38,7 @@ func New(r Repo) *Discover {
 type Link struct {
 	Value   string `json:"-"`
 	Path    string
-	With    string
+	With    []string
 	Percent float32
 }
 
@@ -129,7 +129,7 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 
 				if exists {
 					nl := l
-					nl.With = fmt.Sprintf("%s.%s", db, c)
+					nl.With = []string{fmt.Sprintf("%s.%s", db, c)}
 					matchLs = append(matchLs, nl)
 				}
 			}
@@ -143,7 +143,7 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	m := make(map[string]struct {
 		n    int
-		with string
+		with []string
 	})
 	mL := make(CollectionLinks)
 
