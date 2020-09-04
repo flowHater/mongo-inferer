@@ -30,7 +30,7 @@ func TestLinkify(t *testing.T) {
 	}{
 		{
 			name: "nominal case",
-			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeeeId": oid1}},
+			args: args{currentPath: "", m: primitive.M{"keyField": "valueField", "eeeeeId": oid1, "_id": oid1}},
 			want: []Link{{Path: "eeeeeId", Value: oid1.Hex()}},
 		}, {
 			name: "nested case",
