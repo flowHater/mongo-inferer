@@ -300,7 +300,7 @@ func TestDiscover_Collection(t *testing.T) {
 				"nested.field":  {Path: "nested.field", With: "db1.nestedDocs", Percent: 0.6666667},
 			}
 
-			return test{name: "nominal case", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+			return test{name: "nominal case - should output all links inside the source collection", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
 		}(),
 	}
 
