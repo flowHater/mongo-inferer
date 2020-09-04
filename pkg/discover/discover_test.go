@@ -141,7 +141,7 @@ func TestMatchLink(t *testing.T) {
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
 
 			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
-			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"}}
+			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}}}
 
 			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
 		}(),
@@ -172,8 +172,8 @@ func TestMatchLink(t *testing.T) {
 				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
 			}}
 			want := []Link{
-				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: "db2.cl3"},
-				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: "db1.cl2"},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: []string{"db1.cl2"}},
 			}
 
 			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
@@ -216,36 +216,36 @@ func Test_reduceLinks(t *testing.T) {
 			args: args{
 				lss: [][]Link{
 					{
-						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
-						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}},
 					},
 				},
 			}, want: CollectionLinks{
-				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3", Percent: 1},
-				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2", Percent: 1},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Percent: 1},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 1},
 			},
 		}, {
 			name: "Nominal case - with links present at random%",
 			args: args{
 				lss: [][]Link{
 					{
-						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
-						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}},
 					},
 					{
-						{Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: "db8.cl40"},
-						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2"},
+						{Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: []string{"db8.cl40"}},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}},
 					},
 					{
-						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3"},
-						{Path: "ttttttttttt3.ooop.dda.ccccccc", With: "db4.cl4"},
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}},
+						{Path: "ttttttttttt3.ooop.dda.ccccccc", With: []string{"db4.cl4"}},
 					},
 				},
 			}, want: CollectionLinks{
-				"eeeeeeeeee.455aaaaaaaa.ccccccc":       {Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: "db8.cl40", Percent: 0.33333334},
-				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     {Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: "db2.cl3", Percent: 0.6666667},
-				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: "db4.cl4", Percent: 0.33333334},
-				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: "db1.cl2", Percent: 0.6666667},
+				"eeeeeeeeee.455aaaaaaaa.ccccccc":       {Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: []string{"db8.cl40"}, Percent: 0.33333334},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     {Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Percent: 0.6666667},
+				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: []string{"db4.cl4"}, Percent: 0.33333334},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 0.6666667},
 			},
 		},
 	}
@@ -329,11 +329,11 @@ func TestDiscover_Collection(t *testing.T) {
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			want := CollectionLinks{
-				"eeeeeId":       {Path: "eeeeeId", With: "db2.eeeees", Percent: 1},
-				"otherField":    {Path: "otherField", With: "db1.otherFields", Percent: 1},
-				"otherFieldStr": {Path: "otherFieldStr", With: "db2.otherFieldStrs", Percent: 1},
-				"randomField":   {Path: "randomField", With: "db1.randomFields", Percent: 0.33333334},
-				"nested.field":  {Path: "nested.field", With: "db1.nestedDocs", Percent: 0.6666667},
+				"eeeeeId":       {Path: "eeeeeId", With: []string{"db2.eeeees"}, Percent: 1},
+				"otherField":    {Path: "otherField", With: []string{"db1.otherFields"}, Percent: 1},
+				"otherFieldStr": {Path: "otherFieldStr", With: []string{"db2.otherFieldStrs"}, Percent: 1},
+				"randomField":   {Path: "randomField", With: []string{"db1.randomFields"}, Percent: 0.33333334},
+				"nested.field":  {Path: "nested.field", With: []string{"db1.nestedDocs"}, Percent: 0.6666667},
 			}
 
 			return test{name: "nominal case - should output all links inside the source collection", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
