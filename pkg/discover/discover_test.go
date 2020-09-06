@@ -135,10 +135,8 @@ func TestMatchLink(t *testing.T) {
 			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
 			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid1).Return(false, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid1).Return(false, nil)
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
 			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}}}
@@ -157,15 +155,9 @@ func TestMatchLink(t *testing.T) {
 			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
 			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid1).Return(false, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid1).Return(false, nil)
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid1).Return(false, nil)
-
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl1", oid2).Return(false, nil)
 			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid2).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid2).Return(false, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid2).Return(false, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
@@ -173,6 +165,38 @@ func TestMatchLink(t *testing.T) {
 			}}
 			want := []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: []string{"db1.cl2"}},
+			}
+
+			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+		}(),
+
+		func() test {
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+
+			oid1 := primitive.NewObjectID()
+			oid2 := primitive.NewObjectID()
+			oid3 := primitive.NewObjectID()
+
+			repo := mock_discover.NewMockRepo(ctrl)
+			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid2).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid3).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+
+			a := args{ctx: ctx, ls: []Link{
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid3.Hex()},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
+			}}
+			want := []Link{
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid3.Hex(), With: []string{"db2.cl4"}},
 				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: []string{"db1.cl2"}},
 			}
 
@@ -247,8 +271,26 @@ func Test_reduceLinks(t *testing.T) {
 				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: []string{"db4.cl4"}, Percent: 0.33333334},
 				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 0.6666667},
 			},
+		}, {
+			name: "With same path matching multiple collections - polymorphism",
+			args: args{
+				lss: [][]Link{
+					{
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl4"}},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}},
+					}, {
+						{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}},
+						{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}},
+					},
+				},
+			},
+			want: CollectionLinks{
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl4", "db2.cl3"}, Percent: 1},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 1},
+			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := reduceLinks(tt.args.lss)

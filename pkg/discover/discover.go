@@ -98,6 +98,7 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 }
 
 // matchLink tries to match Links against all collection to find
+// if n is the ls's length d.matchLink will return n Link if all ids are found
 func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 	matchLs := []Link{}
 
@@ -129,7 +130,7 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 
 				if exists {
 					nl := l
-					nl.With = []string{fmt.Sprintf("%s.%s", db, c)}
+					nl.With = append(nl.With, fmt.Sprintf("%s.%s", db, c))
 					matchLs = append(matchLs, nl)
 				}
 			}
@@ -145,18 +146,22 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 		n    int
 		with []string
 	})
-	mL := make(CollectionLinks)
 
 	for _, ls := range lss {
 		for _, l := range ls {
 			c := m[l.Path]
 
+			if !contains(c.with, l.With[0]) {
+				c.with = append(c.with, l.With...)
+			}
+
 			c.n = c.n + 1
-			c.with = l.With
+
 			m[l.Path] = c
 		}
 	}
 
+	mL := make(CollectionLinks)
 	for p, c := range m {
 		mL[p] = Link{
 			Path:    p,
@@ -168,9 +173,17 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	return mL, nil
 }
 
+func contains(ss []string, match string) bool {
+	for _, s := range ss {
+		if s == match {
+			return true
+		}
+	}
+	return false
+}
+
 // Collection retrieves all path that can be an ObjectId
 func (d Discover) Collection(ctx context.Context, db string, collection string) (CollectionLinks, error) {
-
 	samples, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
 	if err != nil {
 		log.Printf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
