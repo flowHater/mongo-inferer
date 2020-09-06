@@ -215,23 +215,46 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 	if err != nil {
 		return nil, fmt.Errorf("Error during ListCollections(): %w", err)
 	}
+
+	log.Printf("Found %d collections for %s\n", len(cls), db)
 	mCls := map[string]CollectionLinks{}
 	wg := sync.WaitGroup{}
+	ch := make(chan work)
+	errCh := make(chan error)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	for _, cl := range cls {
 		c := cl
 		go func() {
 			wg.Add(1)
-			mCls[c], err = d.Collection(ctx, db, c)
+			cm, errC := d.Collection(ctx, db, c)
+			if errC != nil {
+				errCh <- errC
+			}
+			ch <- work{path: c, c: cm}
 
 			wg.Done()
 		}()
 	}
+	go func() {
+		for {
+			select {
+			case c := <-ch:
+				mCls[c.path] = c.c
+			case err := <-errCh:
+				log.Printf("Error during scanning collection: %v", err)
+				cancel()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 	wg.Wait()
-
-	if err != nil {
-		return nil, fmt.Errorf("Error during Collection(ctx, db, cl): %w", err)
-	}
-
 	return mCls, nil
+}
+
+type work struct {
+	c    CollectionLinks
+	path string
 }
