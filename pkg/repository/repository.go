@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -58,7 +60,8 @@ func (r Repo) ListCollections(ctx context.Context, db string) ([]string, error) 
 func (r Repo) SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error) {
 	c, err := r.client.Database(db).Collection(collection).Aggregate(ctx, primitive.A{
 		primitive.D{{Key: "$sample", Value: primitive.D{{Key: "size", Value: size}}}},
-	})
+	}, options.Aggregate().SetAllowDiskUse(true))
+
 	if err != nil {
 		return nil, fmt.Errorf("Error during sampling: %w", err)
 	}
