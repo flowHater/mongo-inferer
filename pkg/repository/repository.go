@@ -38,7 +38,11 @@ func New(opts ...OptionF) *Repo {
 
 // ExistsByID tests the existence of a document by its ID in a specific database collection
 func (r Repo) ExistsByID(ctx context.Context, db, collection string, id primitive.ObjectID) (bool, error) {
-	c, err := r.client.Database(db).Collection(collection).Find(ctx, primitive.M{"_id": id})
+	c, err := r.client.Database(db).Collection(collection).Find(ctx,
+		primitive.M{"_id": id},
+		options.Find().SetProjection(primitive.M{"_id": 1}).SetLimit(1),
+	)
+
 	if err != nil {
 		return false, fmt.Errorf("Error during fetching %s in %s.%s with: %w", id, db, collection, err)
 	}
