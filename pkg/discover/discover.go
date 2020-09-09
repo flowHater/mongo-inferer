@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	sampleSize = 10
+	sampleSize = 100
 	primaryKey = "_id"
 )
 
@@ -22,15 +22,29 @@ type Repo interface {
 	SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error)
 }
 
+type cacheExists struct {
+	*sync.RWMutex
+	m map[string]bool
+}
+
+type cacheCollection struct {
+	*sync.RWMutex
+	m map[string][]string
+}
+
 // Discover will walk trought Database using its repo and collect some data about the schema
 type Discover struct {
-	repo Repo
+	cacheExists     cacheExists
+	cacheCollection cacheCollection
+	repo            Repo
 }
 
 // New returns a new discover
 func New(r Repo) *Discover {
 	return &Discover{
-		repo: r,
+		repo:            r,
+		cacheExists:     cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
+		cacheCollection: cacheCollection{m: make(map[string][]string), RWMutex: &sync.RWMutex{}},
 	}
 }
 
@@ -107,33 +121,50 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 		return nil, fmt.Errorf("Error during fetching Db names: %w", err)
 	}
 
-	for _, db := range dbs {
-		if db == "config" || db == "system" || db == "admin" || db == "local" {
-			continue
-		}
-
-		cls, err := d.repo.ListCollections(ctx, db)
-		if err != nil {
-			return nil, fmt.Errorf("Error during fetching collection names for db: %s with: %w", db, err)
-		}
-		for _, c := range cls {
-			for _, l := range ls {
-				id, err := primitive.ObjectIDFromHex(l.Value)
-				if err != nil {
-					return nil, fmt.Errorf("Error during ObjectId creation with value: %s, with: %s", l.Value, err)
-				}
-
-				exists, err := d.repo.ExistsByID(ctx, db, c, id)
-				if err != nil {
-					return nil, fmt.Errorf("Error during searching %s in %s.%s with: %w", id.Hex(), db, c, err)
-				}
-
-				if exists {
-					nl := l
-					nl.With = append(nl.With, fmt.Sprintf("%s.%s", db, c))
-					matchLs = append(matchLs, nl)
-				}
+	for _, l := range ls {
+		withCancel, cancel := context.WithCancel(ctx)
+		defer cancel()
+		ch := make(chan string, 1) //expecting that only 1 db.collection will match id
+		defer close(ch)
+		wg := sync.WaitGroup{}
+		for _, dbase := range dbs {
+			db := dbase
+			if db == "config" || db == "system" || db == "admin" || db == "local" {
+				continue
 			}
+			cls, err := d.listCollectionsWithCache(ctx, db)
+			if err != nil {
+				return nil, fmt.Errorf("Error during fetching collection names for db: %s with: %w", db, err)
+			}
+
+			for _, c := range cls {
+				cl := c
+				wg.Add(1)
+
+				go func() {
+					defer wg.Done()
+					exists, err := d.existsByIDWithCache(withCancel, db, cl, l.Value)
+					if err != nil {
+						log.Printf("Error during existingID: %v\n", err)
+					}
+
+					if exists {
+						ch <- fmt.Sprintf("%s.%s", db, cl)
+						cancel()
+					}
+				}()
+			}
+		}
+
+		wg.Wait()
+
+		select {
+		case p := <-ch:
+			nl := l
+			nl.With = append(nl.With, p)
+			matchLs = append(matchLs, nl)
+		default:
+			log.Printf("Unknow OID: %s\n", l.Value)
 		}
 	}
 
@@ -180,6 +211,54 @@ func contains(ss []string, match string) bool {
 		}
 	}
 	return false
+}
+
+func (d Discover) existsByIDWithCache(ctx context.Context, db string, c string, idStr string) (bool, error) {
+	path := fmt.Sprintf("%s.%s:%s", db, c, idStr)
+	d.cacheExists.RLock()
+	b, ok := d.cacheExists.m[path]
+	d.cacheExists.RUnlock()
+
+	if ok {
+		return b, nil
+	}
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return false, fmt.Errorf("Error during ObjectId creation with value: %s, with: %s", id, err)
+	}
+
+	exists, err := d.repo.ExistsByID(ctx, db, c, id)
+	if err != nil {
+		return false, fmt.Errorf("Error during searching %s in %s.%s with: %w", id.Hex(), db, c, err)
+	}
+
+	d.cacheExists.Lock()
+	d.cacheExists.m[path] = exists
+	d.cacheExists.Unlock()
+
+	return exists, err
+}
+
+func (d Discover) listCollectionsWithCache(ctx context.Context, db string) ([]string, error) {
+	path := db
+	d.cacheCollection.RLock()
+	l, ok := d.cacheCollection.m[path]
+	d.cacheCollection.RUnlock()
+	if ok {
+		return l, nil
+	}
+
+	cls, err := d.repo.ListCollections(ctx, db)
+	if err != nil {
+		return []string{}, fmt.Errorf("Error during listing collection for %s with: %w", db, err)
+	}
+
+	d.cacheCollection.Lock()
+	d.cacheCollection.m[path] = cls
+	d.cacheCollection.Unlock()
+
+	return cls, err
 }
 
 // Collection retrieves all path that can be an ObjectId
@@ -241,6 +320,7 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 		for {
 			select {
 			case c := <-ch:
+				log.Printf("%s.%s done!\n", db, c.path)
 				mCls[c.path] = c.c
 			case err := <-errCh:
 				log.Printf("Error during scanning collection: %v", err)
@@ -251,6 +331,8 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 		}
 	}()
 	wg.Wait()
+
+	log.Printf("%d ObjectId scanned !\n", len(d.cacheExists.m))
 	return mCls, nil
 }
 
