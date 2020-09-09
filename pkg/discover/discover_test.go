@@ -13,6 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+var withCancelCtx = reflect.TypeOf((*context.Context)(nil)).Elem()
+
 func TestLinkify(t *testing.T) {
 	type args struct {
 		m           primitive.M
@@ -68,7 +70,8 @@ func TestLinkify(t *testing.T) {
 								"useless":           "field",
 								"array5":            primitive.A{primitive.M{"superNestedField": oid3}},
 							}},
-							"field3": oid4},
+							"field3": oid4,
+						},
 					},
 					"field2": oid2,
 				},
@@ -131,12 +134,12 @@ func TestMatchLink(t *testing.T) {
 			oid1 := primitive.NewObjectID()
 
 			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
 			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}}}
@@ -151,13 +154,13 @@ func TestMatchLink(t *testing.T) {
 			oid2 := primitive.NewObjectID()
 
 			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid2).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
@@ -180,14 +183,14 @@ func TestMatchLink(t *testing.T) {
 			oid3 := primitive.NewObjectID()
 
 			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "cl2", oid2).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "cl4", oid3).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl4", oid3).Return(true, nil)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
@@ -207,9 +210,7 @@ func TestMatchLink(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.ctrl.Finish()
-			d := Discover{
-				repo: tt.fields.repo,
-			}
+			d := New(tt.fields.repo)
 
 			got, err := d.matchLink(tt.args.ctx, tt.args.ls)
 			if err != nil {
@@ -346,29 +347,29 @@ func TestDiscover_Collection(t *testing.T) {
 			a := args{ctx: ctx, collection: "cl00020", db: "db902"}
 
 			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().SampleCollection(gomock.Eq(ctx), a.db, a.collection, sampleSize).Return([]primitive.M{
+			repo.EXPECT().SampleCollection(gomock.AssignableToTypeOf(withCancelCtx), a.db, a.collection, sampleSize).Return([]primitive.M{
 				{"keyField": "valueField", "eeeeeId": oid4, "otherField": oid7, "otherFieldStr": oid10, "_id": oid1, "nested": primitive.M{"field": oid14}},
 				{"keyField": "valueField", "eeeeeId": oid5, "otherField": oid8, "otherFieldStr": oid11, "randomField": oid13, "_id": oid2},
 				{"keyField": "valueField", "eeeeeId": oid6, "otherField": oid9, "otherFieldStr": oid12, "_id": oid3, "nested": primitive.M{"field": oid15}},
 			}, nil)
-			repo.EXPECT().ListDatabases(gomock.Eq(ctx)).Return([]string{"db1", "db2"}, nil).Times(3)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db1").Return([]string{"otherFields", "randomFields", "nestedDocs"}, nil).Times(3)
-			repo.EXPECT().ListCollections(gomock.Eq(ctx), "db2").Return([]string{"otherFieldStrs", "uselessDocs", "eeeees"}, nil).Times(3)
+			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil).Times(3)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"otherFields", "randomFields", "nestedDocs"}, nil).Times(3)
+			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"otherFieldStrs", "uselessDocs", "eeeees"}, nil).Times(3)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid7).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid8).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "otherFields", oid9).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "nestedDocs", oid14).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "nestedDocs", oid15).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db1", "randomFields", oid13).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid7).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid8).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid9).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid14).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid15).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "randomFields", oid13).Return(true, nil).Times(1)
 
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid10).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid11).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "otherFieldStrs", oid12).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid4).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid5).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), "db2", "eeeees", oid6).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.Eq(ctx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid10).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid11).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid12).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid4).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid5).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid6).Return(true, nil).Times(1)
+			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			want := CollectionLinks{
 				"eeeeeId":       {Path: "eeeeeId", With: []string{"db2.eeeees"}, Percent: 1},
@@ -384,9 +385,7 @@ func TestDiscover_Collection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := Discover{
-				repo: tt.fields.repo,
-			}
+			d := New(tt.fields.repo)
 			got, err := d.Collection(tt.args.ctx, tt.args.db, tt.args.collection)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Discover.Collection() error = %v, wantErr %v", err, tt.wantErr)

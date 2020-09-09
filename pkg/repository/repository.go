@@ -44,6 +44,11 @@ func (r Repo) ExistsByID(ctx context.Context, db, collection string, id primitiv
 	)
 
 	if err != nil {
+		if ctx.Err() == context.Canceled {
+			// The context can be canceled if another goroutine found a matching collection before this one
+			return false, nil
+		}
+
 		return false, fmt.Errorf("Error during fetching %s in %s.%s with: %w", id, db, collection, err)
 	}
 
