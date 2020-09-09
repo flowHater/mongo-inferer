@@ -1,4 +1,4 @@
-package repository
+package discover
 
 import (
 	"context"
@@ -10,24 +10,24 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// Repo contains all methods to access to Mongodb
-type Repo struct {
+// Repository contains all methods to access to Mongodb
+type Repository struct {
 	client *mongo.Client
 }
 
-// OptionF describes a func that will be called from the New func
-type OptionF func(*Repo)
+// RepositoryOptionF describes a func that will be called from the New func
+type RepositoryOptionF func(*Repository)
 
-// WithClient allows caller to set a specific client which will be used to request
-func WithClient(c *mongo.Client) OptionF {
-	return func(r *Repo) {
+// RepositoryWithClient allows caller to set a specific client which will be used to request
+func RepositoryWithClient(c *mongo.Client) RepositoryOptionF {
+	return func(r *Repository) {
 		r.client = c
 	}
 }
 
-// New creates a new repository
-func New(opts ...OptionF) *Repo {
-	r := &Repo{}
+// NewRepository creates a new Repository
+func NewRepository(opts ...RepositoryOptionF) *Repository {
+	r := &Repository{}
 
 	for _, o := range opts {
 		o(r)
@@ -37,7 +37,7 @@ func New(opts ...OptionF) *Repo {
 }
 
 // ExistsByID tests the existence of a document by its ID in a specific database collection
-func (r Repo) ExistsByID(ctx context.Context, db, collection string, id primitive.ObjectID) (bool, error) {
+func (r Repository) ExistsByID(ctx context.Context, db, collection string, id primitive.ObjectID) (bool, error) {
 	c, err := r.client.Database(db).Collection(collection).Find(ctx,
 		primitive.M{"_id": id},
 		options.Find().SetProjection(primitive.M{"_id": 1}).SetLimit(1),
@@ -56,17 +56,17 @@ func (r Repo) ExistsByID(ctx context.Context, db, collection string, id primitiv
 }
 
 // ListDatabases will return all database names that client can access
-func (r Repo) ListDatabases(ctx context.Context) ([]string, error) {
+func (r Repository) ListDatabases(ctx context.Context) ([]string, error) {
 	return r.client.ListDatabaseNames(ctx, primitive.M{})
 }
 
 // ListCollections will return all collection names for a specific db
-func (r Repo) ListCollections(ctx context.Context, db string) ([]string, error) {
+func (r Repository) ListCollections(ctx context.Context, db string) ([]string, error) {
 	return r.client.Database(db).ListCollectionNames(ctx, primitive.M{})
 }
 
 // SampleCollection returns a random sample of a specific size from a specific db.collection
-func (r Repo) SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error) {
+func (r Repository) SampleCollection(ctx context.Context, db, collection string, size int) ([]primitive.M, error) {
 	c, err := r.client.Database(db).Collection(collection).Aggregate(ctx, primitive.A{
 		primitive.D{{Key: "$sample", Value: primitive.D{{Key: "size", Value: size}}}},
 	}, options.Aggregate().SetAllowDiskUse(true))

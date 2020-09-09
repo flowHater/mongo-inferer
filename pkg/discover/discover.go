@@ -14,8 +14,8 @@ const (
 	primaryKey = "_id"
 )
 
-// Repo describes all methods needed by Discover
-type Repo interface {
+// Fetcher describes all methods needed by Discover
+type Fetcher interface {
 	ExistsByID(ctx context.Context, db, collection string, id primitive.ObjectID) (bool, error)
 	ListDatabases(ctx context.Context) ([]string, error)
 	ListCollections(ctx context.Context, db string) ([]string, error)
@@ -32,17 +32,17 @@ type cacheCollection struct {
 	m map[string][]string
 }
 
-// Discover will walk trought Database using its repo and collect some data about the schema
+// Discover will walk trought Database using its Fetcher and collect some data about the schema
 type Discover struct {
 	cacheExists     cacheExists
 	cacheCollection cacheCollection
-	repo            Repo
+	Fetcher         Fetcher
 }
 
 // New returns a new discover
-func New(r Repo) *Discover {
+func New(r Fetcher) *Discover {
 	return &Discover{
-		repo:            r,
+		Fetcher:         r,
 		cacheExists:     cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
 		cacheCollection: cacheCollection{m: make(map[string][]string), RWMutex: &sync.RWMutex{}},
 	}
@@ -116,7 +116,7 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 	matchLs := []Link{}
 
-	dbs, err := d.repo.ListDatabases(ctx)
+	dbs, err := d.Fetcher.ListDatabases(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Error during fetching Db names: %w", err)
 	}
@@ -228,7 +228,7 @@ func (d Discover) existsByIDWithCache(ctx context.Context, db string, c string, 
 		return false, fmt.Errorf("Error during ObjectId creation with value: %s, with: %s", id, err)
 	}
 
-	exists, err := d.repo.ExistsByID(ctx, db, c, id)
+	exists, err := d.Fetcher.ExistsByID(ctx, db, c, id)
 	if err != nil {
 		return false, fmt.Errorf("Error during searching %s in %s.%s with: %w", id.Hex(), db, c, err)
 	}
@@ -249,7 +249,7 @@ func (d Discover) listCollectionsWithCache(ctx context.Context, db string) ([]st
 		return l, nil
 	}
 
-	cls, err := d.repo.ListCollections(ctx, db)
+	cls, err := d.Fetcher.ListCollections(ctx, db)
 	if err != nil {
 		return []string{}, fmt.Errorf("Error during listing collection for %s with: %w", db, err)
 	}
@@ -263,7 +263,7 @@ func (d Discover) listCollectionsWithCache(ctx context.Context, db string) ([]st
 
 // Collection retrieves all path that can be an ObjectId
 func (d Discover) Collection(ctx context.Context, db string, collection string) (CollectionLinks, error) {
-	samples, err := d.repo.SampleCollection(ctx, db, collection, sampleSize)
+	samples, err := d.Fetcher.SampleCollection(ctx, db, collection, sampleSize)
 	if err != nil {
 		log.Printf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
 		return nil, fmt.Errorf("Error during fetching sample of collection: %s db: %s with err: %s", collection, db, err)
@@ -290,7 +290,7 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 
 // Database returns all links about all collections inside a Database
 func (d Discover) Database(ctx context.Context, db string) (map[string]CollectionLinks, error) {
-	cls, err := d.repo.ListCollections(ctx, db)
+	cls, err := d.Fetcher.ListCollections(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("Error during ListCollections(): %w", err)
 	}

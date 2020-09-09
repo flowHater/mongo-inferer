@@ -111,7 +111,7 @@ func TestLinkify(t *testing.T) {
 
 func TestMatchLink(t *testing.T) {
 	type fields struct {
-		repo Repo
+		fetcher Fetcher
 	}
 	type args struct {
 		ctx context.Context
@@ -133,18 +133,18 @@ func TestMatchLink(t *testing.T) {
 
 			oid1 := primitive.NewObjectID()
 
-			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			fetcher := mock_discover.NewMockFetcher(ctrl)
+			fetcher.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
 			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}}}
 
-			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
 		}(),
 		func() test {
 			ctx := context.Background()
@@ -153,14 +153,14 @@ func TestMatchLink(t *testing.T) {
 			oid1 := primitive.NewObjectID()
 			oid2 := primitive.NewObjectID()
 
-			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			fetcher := mock_discover.NewMockFetcher(ctrl)
+			fetcher.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
@@ -171,7 +171,7 @@ func TestMatchLink(t *testing.T) {
 				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: []string{"db1.cl2"}},
 			}
 
-			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+			return test{name: "nominal case - MORE COMPLEX", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
 		}(),
 
 		func() test {
@@ -182,15 +182,15 @@ func TestMatchLink(t *testing.T) {
 			oid2 := primitive.NewObjectID()
 			oid3 := primitive.NewObjectID()
 
-			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
+			fetcher := mock_discover.NewMockFetcher(ctrl)
+			fetcher.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
 
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl4", oid3).Return(true, nil)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl4", oid3).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			a := args{ctx: ctx, ls: []Link{
 				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
@@ -203,14 +203,14 @@ func TestMatchLink(t *testing.T) {
 				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex(), With: []string{"db1.cl2"}},
 			}
 
-			return test{name: "nominal case - MORE COMPLEX", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+			return test{name: "nominal case - MORE COMPLEX", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
 		}(),
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.ctrl.Finish()
-			d := New(tt.fields.repo)
+			d := New(tt.fields.fetcher)
 
 			got, err := d.matchLink(tt.args.ctx, tt.args.ls)
 			if err != nil {
@@ -308,7 +308,7 @@ func Test_reduceLinks(t *testing.T) {
 
 func TestDiscover_Collection(t *testing.T) {
 	type fields struct {
-		repo Repo
+		fetcher Fetcher
 	}
 	type args struct {
 		ctx        context.Context
@@ -346,30 +346,30 @@ func TestDiscover_Collection(t *testing.T) {
 
 			a := args{ctx: ctx, collection: "cl00020", db: "db902"}
 
-			repo := mock_discover.NewMockRepo(ctrl)
-			repo.EXPECT().SampleCollection(gomock.AssignableToTypeOf(withCancelCtx), a.db, a.collection, sampleSize).Return([]primitive.M{
+			fetcher := mock_discover.NewMockFetcher(ctrl)
+			fetcher.EXPECT().SampleCollection(gomock.AssignableToTypeOf(withCancelCtx), a.db, a.collection, sampleSize).Return([]primitive.M{
 				{"keyField": "valueField", "eeeeeId": oid4, "otherField": oid7, "otherFieldStr": oid10, "_id": oid1, "nested": primitive.M{"field": oid14}},
 				{"keyField": "valueField", "eeeeeId": oid5, "otherField": oid8, "otherFieldStr": oid11, "randomField": oid13, "_id": oid2},
 				{"keyField": "valueField", "eeeeeId": oid6, "otherField": oid9, "otherFieldStr": oid12, "_id": oid3, "nested": primitive.M{"field": oid15}},
 			}, nil)
-			repo.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil).Times(3)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"otherFields", "randomFields", "nestedDocs"}, nil).Times(3)
-			repo.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"otherFieldStrs", "uselessDocs", "eeeees"}, nil).Times(3)
+			fetcher.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil).Times(3)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"otherFields", "randomFields", "nestedDocs"}, nil).Times(3)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"otherFieldStrs", "uselessDocs", "eeeees"}, nil).Times(3)
 
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid7).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid8).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid9).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid14).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid15).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "randomFields", oid13).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid7).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid8).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "otherFields", oid9).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid14).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "nestedDocs", oid15).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "randomFields", oid13).Return(true, nil).Times(1)
 
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid10).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid11).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid12).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid4).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid5).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid6).Return(true, nil).Times(1)
-			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid10).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid11).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "otherFieldStrs", oid12).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid4).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid5).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "eeeees", oid6).Return(true, nil).Times(1)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			want := CollectionLinks{
 				"eeeeeId":       {Path: "eeeeeId", With: []string{"db2.eeeees"}, Avg: 1},
@@ -379,13 +379,13 @@ func TestDiscover_Collection(t *testing.T) {
 				"nested.field":  {Path: "nested.field", With: []string{"db1.nestedDocs"}, Avg: 0.6666667},
 			}
 
-			return test{name: "nominal case - should output all links inside the source collection", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}
+			return test{name: "nominal case - should output all links inside the source collection", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
 		}(),
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := New(tt.fields.repo)
+			d := New(tt.fields.fetcher)
 			got, err := d.Collection(tt.args.ctx, tt.args.db, tt.args.collection)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Discover.Collection() error = %v, wantErr %v", err, tt.wantErr)

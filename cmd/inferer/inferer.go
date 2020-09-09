@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/flowHater/mongo-inferer/pkg/seeder"
 	"log"
 
 	"github.com/flowHater/mongo-inferer/pkg/discover"
-	"github.com/flowHater/mongo-inferer/pkg/repository"
+	"github.com/flowHater/mongo-inferer/pkg/seeder"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -20,11 +19,13 @@ func main() {
 		log.Fatalf("An error occured during mongodb client's initialization")
 	}
 
-	r := repository.New(repository.WithClient(client))
+	r := discover.NewRepository(discover.RepositoryWithClient(client))
 	d := discover.New(r)
 
-	m, _ := d.Collection(ctx, seeder.Database, seeder.CollectionA)
-
+	m, err := d.Database(ctx, seeder.Database)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	jm, err := json.Marshal(m)
 	fmt.Println(string(jm))
 }
