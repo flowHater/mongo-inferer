@@ -297,46 +297,35 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 
 	log.Printf("Found %d collections for %s\n", len(cls), db)
 	mCls := map[string]CollectionLinks{}
-	wg := sync.WaitGroup{}
-	ch := make(chan work)
-	errCh := make(chan error)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ch := make(chan work, len(cls))
+	w := sync.WaitGroup{}
 
 	for _, cl := range cls {
 		c := cl
+		w.Add(1)
 		go func() {
-			wg.Add(1)
-			cm, errC := d.Collection(ctx, db, c)
-			if errC != nil {
-				errCh <- errC
+			defer w.Done()
+			cm, err := d.Collection(ctx, db, c)
+			if err != nil {
+				log.Printf("Error during scanning Collection(%s.%s): %v", db, c, err)
 			}
-			ch <- work{path: c, c: cm}
-
-			wg.Done()
+			ch <- work{path: c, cm: cm}
+			log.Printf("%s.%s done!\n", db, c)
 		}()
+
 	}
-	go func() {
-		for {
-			select {
-			case c := <-ch:
-				log.Printf("%s.%s done!\n", db, c.path)
-				mCls[c.path] = c.c
-			case err := <-errCh:
-				log.Printf("Error during scanning collection: %v", err)
-				cancel()
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	wg.Wait()
+
+	w.Wait()
+	close(ch)
+	for w := range ch {
+		mCls[w.path] = w.cm
+	}
 
 	log.Printf("%d ObjectId scanned !\n", len(d.cacheExists.m))
 	return mCls, nil
 }
 
 type work struct {
-	c    CollectionLinks
+	cm   CollectionLinks
 	path string
 }
