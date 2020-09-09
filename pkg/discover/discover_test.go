@@ -246,8 +246,8 @@ func Test_reduceLinks(t *testing.T) {
 					},
 				},
 			}, want: CollectionLinks{
-				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Percent: 1},
-				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 1},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Avg: 1},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Avg: 1},
 			},
 		}, {
 			name: "Nominal case - with links present at random%",
@@ -267,10 +267,10 @@ func Test_reduceLinks(t *testing.T) {
 					},
 				},
 			}, want: CollectionLinks{
-				"eeeeeeeeee.455aaaaaaaa.ccccccc":       {Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: []string{"db8.cl40"}, Percent: 0.33333334},
-				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     {Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Percent: 0.6666667},
-				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: []string{"db4.cl4"}, Percent: 0.33333334},
-				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 0.6666667},
+				"eeeeeeeeee.455aaaaaaaa.ccccccc":       {Path: "eeeeeeeeee.455aaaaaaaa.ccccccc", With: []string{"db8.cl40"}, Avg: 0.33333334},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     {Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl3"}, Avg: 0.6666667},
+				"ttttttttttt3.ooop.dda.ccccccc":        {Path: "ttttttttttt3.ooop.dda.ccccccc", With: []string{"db4.cl4"}, Avg: 0.33333334},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": {Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Avg: 0.6666667},
 			},
 		}, {
 			name: "With same path matching multiple collections - polymorphism",
@@ -286,8 +286,8 @@ func Test_reduceLinks(t *testing.T) {
 				},
 			},
 			want: CollectionLinks{
-				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl4", "db2.cl3"}, Percent: 1},
-				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Percent: 1},
+				"eeeeeeeeee.aaaaaaaaaaaaa.ccccccc":     Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", With: []string{"db2.cl4", "db2.cl3"}, Avg: 1},
+				"ttttttttttt3.ppppppppppp.dda.ccccccc": Link{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", With: []string{"db1.cl2"}, Avg: 1},
 			},
 		},
 	}
@@ -372,11 +372,11 @@ func TestDiscover_Collection(t *testing.T) {
 			repo.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 			want := CollectionLinks{
-				"eeeeeId":       {Path: "eeeeeId", With: []string{"db2.eeeees"}, Percent: 1},
-				"otherField":    {Path: "otherField", With: []string{"db1.otherFields"}, Percent: 1},
-				"otherFieldStr": {Path: "otherFieldStr", With: []string{"db2.otherFieldStrs"}, Percent: 1},
-				"randomField":   {Path: "randomField", With: []string{"db1.randomFields"}, Percent: 0.33333334},
-				"nested.field":  {Path: "nested.field", With: []string{"db1.nestedDocs"}, Percent: 0.6666667},
+				"eeeeeId":       {Path: "eeeeeId", With: []string{"db2.eeeees"}, Avg: 1},
+				"otherField":    {Path: "otherField", With: []string{"db1.otherFields"}, Avg: 1},
+				"otherFieldStr": {Path: "otherFieldStr", With: []string{"db2.otherFieldStrs"}, Avg: 1},
+				"randomField":   {Path: "randomField", With: []string{"db1.randomFields"}, Avg: 0.33333334},
+				"nested.field":  {Path: "nested.field", With: []string{"db1.nestedDocs"}, Avg: 0.6666667},
 			}
 
 			return test{name: "nominal case - should output all links inside the source collection", fields: fields{repo: repo}, args: a, want: want, ctrl: ctrl}

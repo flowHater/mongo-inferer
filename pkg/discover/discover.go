@@ -50,10 +50,10 @@ func New(r Repo) *Discover {
 
 // Link represents a path that leads to an ObjectId as a string
 type Link struct {
-	Value   string `json:"-"`
-	Path    string
-	With    []string
-	Percent float32
+	Value string `json:"-"`
+	Path  string
+	With  []string
+	Avg   float32
 }
 
 // CollectionLinks is a map with all Links found in the database
@@ -195,9 +195,9 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 	mL := make(CollectionLinks)
 	for p, c := range m {
 		mL[p] = Link{
-			Path:    p,
-			Percent: float32(c.n) / float32(len(lss)),
-			With:    c.with,
+			Path: p,
+			Avg:  float32(c.n) / float32(len(lss)),
+			With: c.with,
 		}
 	}
 
