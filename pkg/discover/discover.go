@@ -113,7 +113,7 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 
 // matchLink tries to match Links against all collection to find
 // if n is the ls's length d.matchLink will return n Link if all ids are found
-func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
+func (d Discover) matchLink(ctx context.Context, links []Link) ([]Link, error) {
 	matchLs := []Link{}
 
 	dbs, err := d.Fetcher.ListDatabases(ctx)
@@ -121,7 +121,8 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 		return nil, fmt.Errorf("Error during fetching Db names: %w", err)
 	}
 
-	for _, l := range ls {
+	for _, link := range links {
+		l := link
 		withCancel, cancel := context.WithCancel(ctx)
 		defer cancel()
 		ch := make(chan string, 1) //expecting that only 1 db.collection will match id
@@ -146,6 +147,7 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 					exists, err := d.existsByIDWithCache(withCancel, db, cl, l.Value)
 					if err != nil {
 						log.Printf("Error during existingID: %v\n", err)
+						return
 					}
 
 					if exists {
@@ -167,11 +169,11 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 
 		select {
 		case p := <-ch:
-			nl := l
+			nl := link
 			nl.With = append(nl.With, p)
 			matchLs = append(matchLs, nl)
 		default:
-			log.Printf("Unknow OID: %s\n", l.Value)
+			log.Printf("Unknow OID: %s\n", link.Value)
 		}
 	}
 
@@ -297,6 +299,7 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 
 // Database returns all links about all collections inside a Database
 func (d Discover) Database(ctx context.Context, db string) (map[string]CollectionLinks, error) {
+	log.Println("Starting...")
 	cls, err := d.Fetcher.ListCollections(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("Error during ListCollections(): %w", err)
@@ -319,7 +322,6 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 			ch <- work{path: c, cm: cm}
 			log.Printf("%s.%s done!\n", db, c)
 		}()
-
 	}
 
 	w.Wait()
