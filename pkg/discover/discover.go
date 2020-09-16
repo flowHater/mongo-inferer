@@ -149,8 +149,15 @@ func (d Discover) matchLink(ctx context.Context, ls []Link) ([]Link, error) {
 					}
 
 					if exists {
-						ch <- fmt.Sprintf("%s.%s", db, cl)
-						cancel()
+						/**
+						Have to select to prevent multiple matching to block the channel.
+						With some weird setup it's possible to have a single ObjectID that match multiple document in different sources
+						*/
+						select {
+						case ch <- fmt.Sprintf("%s.%s", db, cl):
+							cancel()
+						case <-withCancel.Done():
+						}
 					}
 				}()
 			}

@@ -119,11 +119,12 @@ func TestMatchLink(t *testing.T) {
 	}
 
 	type test struct {
-		fields fields
-		args   args
-		want   []Link
-		name   string
-		ctrl   *gomock.Controller
+		fields    fields
+		args      args
+		skipCheck bool
+		want      []Link
+		name      string
+		ctrl      *gomock.Controller
 	}
 
 	tests := []test{
@@ -141,7 +142,7 @@ func TestMatchLink(t *testing.T) {
 			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
 			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
-			a := args{ctx: ctx, ls: []Link{Link{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
+			a := args{ctx: ctx, ls: []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()}}}
 			want := []Link{{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex(), With: []string{"db2.cl3"}}}
 
 			return test{name: "nominal case - 2 db, 2 collections for each", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
@@ -205,6 +206,35 @@ func TestMatchLink(t *testing.T) {
 
 			return test{name: "nominal case - MORE COMPLEX", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl}
 		}(),
+		func() test {
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+
+			oid1 := primitive.NewObjectID()
+			oid2 := primitive.NewObjectID()
+			oid3 := primitive.NewObjectID()
+
+			fetcher := mock_discover.NewMockFetcher(ctrl)
+			fetcher.EXPECT().ListDatabases(gomock.AssignableToTypeOf(withCancelCtx)).Return([]string{"db1", "db2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db1").Return([]string{"cl1", "cl2"}, nil)
+			fetcher.EXPECT().ListCollections(gomock.AssignableToTypeOf(withCancelCtx), "db2").Return([]string{"cl3", "cl4"}, nil)
+
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid1).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db1", "cl2", oid2).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl4", oid3).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), "db2", "cl3", oid3).Return(true, nil)
+			fetcher.EXPECT().ExistsByID(gomock.AssignableToTypeOf(withCancelCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
+
+			a := args{ctx: ctx, ls: []Link{
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid1.Hex()},
+				{Path: "eeeeeeeeee.aaaaaaaaaaaaa.ccccccc", Value: oid3.Hex()},
+				{Path: "ttttttttttt3.ppppppppppp.dda.ccccccc", Value: oid2.Hex()},
+			}}
+			want := []Link{} // empty because the correctness of the return is tested above.
+			// In this case we only expect that the function returns something.
+
+			return test{name: "with an objectId matching multiple documents", fields: fields{fetcher: fetcher}, args: a, want: want, ctrl: ctrl, skipCheck: true}
+		}(),
 	}
 
 	for _, tt := range tests {
@@ -218,7 +248,7 @@ func TestMatchLink(t *testing.T) {
 				return
 			}
 
-			if !reflect.DeepEqual(sortLinkInPlace(got), sortLinkInPlace(tt.want)) {
+			if tt.skipCheck == false && !reflect.DeepEqual(sortLinkInPlace(got), sortLinkInPlace(tt.want)) {
 				t.Errorf("Discover.MatchLink() = %v, want %v", got, tt.want)
 			}
 		})
