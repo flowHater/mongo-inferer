@@ -20,7 +20,7 @@ func main() {
 	}
 
 	r := discover.NewRepository(discover.RepositoryWithClient(client))
-	d := discover.New(r)
+	d := discover.New(ctx, r)
 
 	m, err := d.Database(ctx, seeder.Database)
 	if err != nil {

@@ -240,7 +240,7 @@ func TestMatchLink(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.ctrl.Finish()
-			d := New(tt.fields.fetcher)
+			d := New(tt.args.ctx, tt.fields.fetcher)
 
 			got, err := d.matchLink(tt.args.ctx, tt.args.ls)
 			if err != nil {
@@ -415,7 +415,7 @@ func TestDiscover_Collection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := New(tt.fields.fetcher)
+			d := New(tt.args.ctx, tt.fields.fetcher)
 			got, err := d.Collection(tt.args.ctx, tt.args.db, tt.args.collection)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Discover.Collection() error = %v, wantErr %v", err, tt.wantErr)
