@@ -27,15 +27,9 @@ type cacheExists struct {
 	m map[string]bool
 }
 
-type cacheCollection struct {
-	*sync.RWMutex
-	m map[string][]string
-}
-
 // Discover will walk trought Database using its Fetcher and collect some data about the schema
 type Discover struct {
 	cacheExists      cacheExists
-	cacheCollection  cacheCollection
 	Fetcher          Fetcher
 	collectionsByDbs map[string][]string
 }
@@ -61,7 +55,6 @@ func New(ctx context.Context, r Fetcher) *Discover {
 	return &Discover{
 		Fetcher:          r,
 		cacheExists:      cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
-		cacheCollection:  cacheCollection{m: make(map[string][]string), RWMutex: &sync.RWMutex{}},
 		collectionsByDbs: clsByDb,
 	}
 }
@@ -257,27 +250,6 @@ func (d Discover) existsByIDWithCache(ctx context.Context, db string, c string, 
 	d.cacheExists.Unlock()
 
 	return exists, err
-}
-
-func (d Discover) listCollectionsWithCache(ctx context.Context, db string) ([]string, error) {
-	path := db
-	d.cacheCollection.RLock()
-	l, ok := d.cacheCollection.m[path]
-	d.cacheCollection.RUnlock()
-	if ok {
-		return l, nil
-	}
-
-	cls, err := d.Fetcher.ListCollections(ctx, db)
-	if err != nil {
-		return []string{}, fmt.Errorf("Error during listing collection for %s with: %w", db, err)
-	}
-
-	d.cacheCollection.Lock()
-	d.cacheCollection.m[path] = cls
-	d.cacheCollection.Unlock()
-
-	return cls, err
 }
 
 // Collection retrieves all path that can be an ObjectId
