@@ -34,17 +34,35 @@ type cacheCollection struct {
 
 // Discover will walk trought Database using its Fetcher and collect some data about the schema
 type Discover struct {
-	cacheExists     cacheExists
-	cacheCollection cacheCollection
-	Fetcher         Fetcher
+	cacheExists      cacheExists
+	cacheCollection  cacheCollection
+	Fetcher          Fetcher
+	collectionsByDbs map[string][]string
 }
 
 // New returns a new discover
-func New(r Fetcher) *Discover {
+func New(ctx context.Context, r Fetcher) *Discover {
+	clsByDb := make(map[string][]string)
+
+	dbs, err := r.ListDatabases(ctx)
+	if err != nil {
+		log.Fatalf("Error during listing databases: %s", err)
+	}
+
+	for _, db := range dbs {
+		cls, err := r.ListCollections(ctx, db)
+		if err != nil {
+			log.Fatalf("Error during listing collection for %s: %s", db, err)
+		}
+
+		clsByDb[db] = cls
+	}
+
 	return &Discover{
-		Fetcher:         r,
-		cacheExists:     cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
-		cacheCollection: cacheCollection{m: make(map[string][]string), RWMutex: &sync.RWMutex{}},
+		Fetcher:          r,
+		cacheExists:      cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
+		cacheCollection:  cacheCollection{m: make(map[string][]string), RWMutex: &sync.RWMutex{}},
+		collectionsByDbs: clsByDb,
 	}
 }
 
@@ -116,11 +134,6 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 func (d Discover) matchLink(ctx context.Context, links []Link) ([]Link, error) {
 	matchLs := []Link{}
 
-	dbs, err := d.Fetcher.ListDatabases(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Error during fetching Db names: %w", err)
-	}
-
 	for _, link := range links {
 		l := link
 		withCancel, cancel := context.WithCancel(ctx)
@@ -128,15 +141,12 @@ func (d Discover) matchLink(ctx context.Context, links []Link) ([]Link, error) {
 		ch := make(chan string, 1) //expecting that only 1 db.collection will match id
 		defer close(ch)
 		wg := sync.WaitGroup{}
-		for _, dbase := range dbs {
+		for dbase, collections := range d.collectionsByDbs {
 			db := dbase
 			if db == "config" || db == "system" || db == "admin" || db == "local" {
 				continue
 			}
-			cls, err := d.listCollectionsWithCache(ctx, db)
-			if err != nil {
-				return nil, fmt.Errorf("Error during fetching collection names for db: %s with: %w", db, err)
-			}
+			cls := collections
 
 			for _, c := range cls {
 				cl := c
