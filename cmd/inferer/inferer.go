@@ -28,11 +28,12 @@ var myFlags arrayFlags
 func main() {
 	dbs := &arrayFlags{}
 	flag.Var(dbs, "db", "database to infer")
+	uri := flag.String("uri", "mongodb://localhost:27017", "uri used for connection to mongodb")
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(*uri))
 	defer client.Disconnect(ctx)
 	if err != nil {
 		log.Fatalf("An error occured during mongodb client's initialization")
