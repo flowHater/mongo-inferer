@@ -96,7 +96,7 @@ func TestLinkify(t *testing.T) {
 				return
 			}
 
-			got, err := Linkify(tt.args.m, tt.args.currentPath)
+			got, err := Linkify(tt.args.m, tt.args.currentPath, false)
 			if err != nil {
 				t.Errorf("Linkify() error = %v", err)
 				return
