@@ -27,8 +27,10 @@ var myFlags arrayFlags
 
 func main() {
 	dbs := &arrayFlags{}
+	collections := &arrayFlags{}
 	allowFullScan := false
 	flag.Var(dbs, "db", "database to infer")
+	flag.Var(collections, "collection", "collections to infer")
 	flag.BoolVar(&allowFullScan, "fullScan", false, "should infer all kind of field (Not only Link)")
 	uri := flag.String("uri", "mongodb://localhost:27017", "uri used for connection to mongodb")
 	flag.Parse()
@@ -45,7 +47,7 @@ func main() {
 	d := discover.New(ctx, r, discover.AllowFullScan(allowFullScan))
 	m := make(map[string]map[string]discover.CollectionLinks)
 	for _, db := range *dbs {
-		md, err := d.Database(ctx, db)
+		md, err := d.Database(ctx, db, *collections...)
 		if err != nil {
 			log.Println(err)
 		}
