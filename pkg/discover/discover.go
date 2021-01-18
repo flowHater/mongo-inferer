@@ -32,31 +32,45 @@ type Discover struct {
 	cacheExists      cacheExists
 	Fetcher          Fetcher
 	collectionsByDbs map[string][]string
+	allowFullScan    bool
+}
+
+type optionDiscover func(*Discover)
+
+// AllowFullScan activate the full scan of fields not only links
+func AllowFullScan(b bool) func(*Discover) {
+	return func(d *Discover) {
+		d.allowFullScan = b
+	}
 }
 
 // New returns a new discover
-func New(ctx context.Context, r Fetcher) *Discover {
+func New(ctx context.Context, f Fetcher, opts ...optionDiscover) *Discover {
 	clsByDb := make(map[string][]string)
 
-	dbs, err := r.ListDatabases(ctx)
+	dbs, err := f.ListDatabases(ctx)
 	if err != nil {
 		log.Fatalf("Error during listing databases: %s", err)
 	}
 
 	for _, db := range dbs {
-		cls, err := r.ListCollections(ctx, db)
+		cls, err := f.ListCollections(ctx, db)
 		if err != nil {
 			log.Fatalf("Error during listing collection for %s: %s", db, err)
 		}
 
 		clsByDb[db] = cls
 	}
-
-	return &Discover{
-		Fetcher:          r,
+	d := &Discover{
+		Fetcher:          f,
 		cacheExists:      cacheExists{m: make(map[string]bool), RWMutex: &sync.RWMutex{}},
 		collectionsByDbs: clsByDb,
 	}
+
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 // Link represents a path that leads to an ObjectId as a string
@@ -71,7 +85,7 @@ type Link struct {
 type CollectionLinks map[string]Link
 
 // Linkify transforms an primitive.M to a slice of Link
-func Linkify(m primitive.M, currentPath string) ([]Link, error) {
+func Linkify(m primitive.M, currentPath string, allowFullScan bool) ([]Link, error) {
 	ls := []Link{}
 	var path string
 	if currentPath != "" {
@@ -90,7 +104,7 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 			}
 			ls = append(ls, l)
 		} else if m, ok := v.(primitive.M); ok {
-			subls, err := Linkify(m, path+p)
+			subls, err := Linkify(m, path+p, allowFullScan)
 			if err != nil {
 				return ls, err
 			}
@@ -108,7 +122,7 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 		} else if a, ok := v.(primitive.A); ok {
 			for _, el := range a {
 				if e, ok := el.(primitive.M); ok {
-					subls, err := Linkify(e, fmt.Sprintf("%s%s.$", path, p))
+					subls, err := Linkify(e, fmt.Sprintf("%s%s.$", path, p), allowFullScan)
 					if err != nil {
 						return ls, err
 					}
@@ -116,6 +130,12 @@ func Linkify(m primitive.M, currentPath string) ([]Link, error) {
 					ls = append(ls, subls...)
 				}
 			}
+		} else if allowFullScan {
+			l := Link{
+				Path: path + p,
+			}
+
+			ls = append(ls, l)
 		}
 	}
 
@@ -129,6 +149,10 @@ func (d Discover) matchLink(ctx context.Context, links []Link) ([]Link, error) {
 
 	for _, link := range links {
 		l := link
+		if l.Value == "" {
+			matchLs = append(matchLs, l)
+			continue // skip simple fields
+		}
 		withCancel, cancel := context.WithCancel(ctx)
 		defer cancel()
 		ch := make(chan string, 1) //expecting that only 1 db.collection will match id
@@ -194,7 +218,7 @@ func reduceLinks(lss [][]Link) (CollectionLinks, error) {
 		for _, l := range ls {
 			c := m[l.Path]
 
-			if !contains(c.with, l.With[0]) {
+			if l.With != nil && !contains(c.with, l.With[0]) {
 				c.with = append(c.with, l.With...)
 			}
 
@@ -263,7 +287,7 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 	lss := make([][]Link, 0, len(samples))
 
 	for _, m := range samples {
-		ls, err := Linkify(m, "")
+		ls, err := Linkify(m, "", d.allowFullScan)
 		if err != nil {
 			log.Printf("Error during Linkify %s", err)
 			return nil, fmt.Errorf("Error during Linkify %s", err)
@@ -280,8 +304,9 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 }
 
 // Database returns all links about all collections inside a Database
-func (d Discover) Database(ctx context.Context, db string) (map[string]CollectionLinks, error) {
-	log.Println("Starting...")
+func (d Discover) Database(ctx context.Context, db string, collections ...string) (map[string]CollectionLinks, error) {
+	log.Printf("Starting %s...\n", db)
+	hasFilterCollections := len(collections) != 0
 	cls, err := d.Fetcher.ListCollections(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("Error during ListCollections(): %w", err)
@@ -293,6 +318,9 @@ func (d Discover) Database(ctx context.Context, db string) (map[string]Collectio
 	w := sync.WaitGroup{}
 
 	for _, cl := range cls {
+		if hasFilterCollections && !contains(collections, cl) {
+			continue
+		}
 		c := cl
 		w.Add(1)
 		go func() {
