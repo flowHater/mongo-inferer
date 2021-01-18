@@ -305,7 +305,7 @@ func (d Discover) Collection(ctx context.Context, db string, collection string) 
 
 // Database returns all links about all collections inside a Database
 func (d Discover) Database(ctx context.Context, db string, collections ...string) (map[string]CollectionLinks, error) {
-	log.Println("Starting...")
+	log.Printf("Starting %s...\n", db)
 	hasFilterCollections := len(collections) != 0
 	cls, err := d.Fetcher.ListCollections(ctx, db)
 	if err != nil {
